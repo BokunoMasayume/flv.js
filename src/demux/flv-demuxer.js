@@ -15,19 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+// readnote flv-demuxer 解码主文件
 import Log from '../utils/logger.js';
+// readnote amf : SCRIPTDATAVALUE
 import AMF from './amf-parser.js';
 import SPSParser from './sps-parser.js';
 import DemuxErrors from './demux-errors.js';
 import MediaInfo from '../core/media-info.js';
 import {IllegalStateException} from '../utils/exception.js';
 
+// readnote 交换2字节的高低位 大小端字节序转换
 function Swap16(src) {
     return (((src >>> 8) & 0xFF) |
             ((src & 0xFF) << 8));
 }
 
+// readnote 交换4字节的高低位 
 function Swap32(src) {
     return (((src & 0xFF000000) >>> 24) |
             ((src & 0x00FF0000) >>> 8)  |
@@ -35,6 +38,8 @@ function Swap32(src) {
             ((src & 0x000000FF) << 24));
 }
 
+// readnote 4字节数获取 大端
+// readnote 网络字节序就是大端
 function ReadBig32(array, index) {
     return ((array[index] << 24)     |
             (array[index + 1] << 16) |
@@ -130,32 +135,37 @@ class FLVDemuxer {
         this._onDataAvailable = null;
     }
 
+    // readnote 探针 扫了一遍flv文件头
     static probe(buffer) {
         let data = new Uint8Array(buffer);
         let mismatch = {match: false};
 
+        // readnote FLV ver 1 flv头部4字节
         if (data[0] !== 0x46 || data[1] !== 0x4C || data[2] !== 0x56 || data[3] !== 0x01) {
             return mismatch;
         }
 
+        // readnote 00000audio0video
         let hasAudio = ((data[4] & 4) >>> 2) !== 0;
         let hasVideo = (data[4] & 1) !== 0;
 
+        // readnote offset : 从文件起始处到文件body处的字节数 一版是9
         let offset = ReadBig32(data, 5);
-
+        // readnote 如果比9小, 视为非flv文件
         if (offset < 9) {
             return mismatch;
         }
 
         return {
-            match: true,
-            consumed: offset,
-            dataOffset: offset,
+            match: true, // readnote 是flv文件
+            consumed: offset, // readnote 已经消耗的字节数
+            dataOffset: offset, // readnote 文件body的偏移
             hasAudioTrack: hasAudio,
             hasVideoTrack: hasVideo
         };
     }
 
+    // readnote 从io处获取待解析数据 数据解析使用 parseChunks
     bindDataSource(loader) {
         loader.onDataArrival = this.parseChunks.bind(this);
         return this;
@@ -264,16 +274,18 @@ class FLVDemuxer {
         return false;
     }
 
+    // readnote 主要的解析数据函数
     // function parseChunks(chunk: ArrayBuffer, byteStart: number): number;
     parseChunks(chunk, byteStart) {
         if (!this._onError || !this._onMediaInfo || !this._onTrackMetadata || !this._onDataAvailable) {
             throw new IllegalStateException('Flv: onError & onMediaInfo & onTrackMetadata & onDataAvailable callback must be specified');
         }
-
+        // readnote 实际使用的offset都是指向一个tag的头部
         let offset = 0;
         let le = this._littleEndian;
 
         if (byteStart === 0) {  // buffer with FLV header
+            // readnote 包含第一个tag
             if (chunk.byteLength > 13) {
                 let probeData = FLVDemuxer.probe(chunk);
                 offset = probeData.dataOffset;
@@ -282,6 +294,7 @@ class FLVDemuxer {
             }
         }
 
+        // readnote 第一次解析 拿掉previous tag size 0
         if (this._firstParse) {  // handle PreviousTagSize0 before Tag1
             this._firstParse = false;
             if (byteStart + offset !== this._dataOffset) {
@@ -300,20 +313,24 @@ class FLVDemuxer {
             this._dispatch = true;
 
             let v = new DataView(chunk, offset);
-
+            // readnote 一个tag的最小长度 tag头(11) + previoustagsize(4)
             if (offset + 11 + 4 > chunk.byteLength) {
                 // data not enough for parsing an flv tag
                 break;
             }
 
+            // readnote tagtype 8 audio 9 video 18 script
             let tagType = v.getUint8(0);
+            // readnote 该tag中的数据部分大小
             let dataSize = v.getUint32(0, !le) & 0x00FFFFFF;
 
+            // readnote 该tag 的大小 头(11) + 数据部分(dataSize) + previoustagsize(4)
             if (offset + 11 + dataSize + 4 > chunk.byteLength) {
                 // data not enough for parsing actual data body
                 break;
             }
 
+            // readnote 只支持三种常见tag, 其他跳过
             if (tagType !== 8 && tagType !== 9 && tagType !== 18) {
                 Log.w(this.TAG, `Unsupported tag type ${tagType}, skipped`);
                 // consume the whole tag (skip it)
@@ -321,6 +338,7 @@ class FLVDemuxer {
                 continue;
             }
 
+            // readnote time stamp
             let ts2 = v.getUint8(4);
             let ts1 = v.getUint8(5);
             let ts0 = v.getUint8(6);
@@ -328,11 +346,12 @@ class FLVDemuxer {
 
             let timestamp = ts0 | (ts1 << 8) | (ts2 << 16) | (ts3 << 24);
 
+            // readnote streamId总是0
             let streamId = v.getUint32(7, !le) & 0x00FFFFFF;
             if (streamId !== 0) {
                 Log.w(this.TAG, 'Meet tag which has StreamID != 0!');
             }
-
+            // readnote dataOffset指向该tag数据部分的起始处
             let dataOffset = offset + 11;
 
             switch (tagType) {
@@ -357,7 +376,9 @@ class FLVDemuxer {
 
         // dispatch parsed frames to consumer (typically, the remuxer)
         if (this._isInitialMetadataDispatched()) {
+            // _dispatch 表示有待分配的数据
             if (this._dispatch && (this._audioTrack.length || this._videoTrack.length)) {
+                // readnote 这是外来注入的函数, 就remuxer
                 this._onDataAvailable(this._audioTrack, this._videoTrack);
             }
         }
@@ -365,7 +386,10 @@ class FLVDemuxer {
         return offset;  // consumed bytes, just equals latest offset index
     }
 
+    // readnote 解析并发送flv元数据包
+    // arrayBuffer : 当前chunk, dataOffset: 要解析的数据距离chunk头的偏移, dataSize: 要解析的数据的大小
     _parseScriptData(arrayBuffer, dataOffset, dataSize) {
+        // readnote script data 一般就是amf格式的 这里返回的应是{onMetaData:{....}}
         let scriptData = AMF.parseScriptData(arrayBuffer, dataOffset, dataSize);
 
         if (scriptData.hasOwnProperty('onMetaData')) {
@@ -395,9 +419,11 @@ class FLVDemuxer {
                     this._mediaInfo.hasVideo = this._hasVideo;
                 }
             }
+            // readnote 音频数据的消耗率 kb/s
             if (typeof onMetaData.audiodatarate === 'number') {  // audiodatarate
                 this._mediaInfo.audioDataRate = onMetaData.audiodatarate;
             }
+            // readnote 同上
             if (typeof onMetaData.videodatarate === 'number') {  // videodatarate
                 this._mediaInfo.videoDataRate = onMetaData.videodatarate;
             }
@@ -416,6 +442,7 @@ class FLVDemuxer {
             } else {
                 this._mediaInfo.duration = 0;
             }
+            // readnote 帧率 每秒画面数
             if (typeof onMetaData.framerate === 'number') {  // framerate
                 let fps_num = Math.floor(onMetaData.framerate * 1000);
                 if (fps_num > 0) {
@@ -427,6 +454,7 @@ class FLVDemuxer {
                     this._mediaInfo.fps = fps;
                 }
             }
+            // readnote keyframes 有两个数组, 一个是fileoptions, 记录每个关键帧数据包的偏移, 一个是times,纪律关键帧的时间戳(秒)
             if (typeof onMetaData.keyframes === 'object') {  // keyframes
                 this._mediaInfo.hasKeyframesIndex = true;
                 let keyframes = onMetaData.keyframes;
@@ -467,12 +495,14 @@ class FLVDemuxer {
         };
     }
 
+    //readnote 解析音频数据包
     _parseAudioData(arrayBuffer, dataOffset, dataSize, tagTimestamp) {
         if (dataSize <= 1) {
             Log.w(this.TAG, 'Flv: Invalid audio packet, missing SoundData payload!');
             return;
         }
 
+        // readnote hasAudioFlagOverrided 表示是否使用外部的定义强制设置hasAudio
         if (this._hasAudioFlagOverrided === true && this._hasAudio === false) {
             // If hasAudio: false indicated explicitly in MediaDataSource,
             // Ignore all the audio packets
@@ -482,14 +512,17 @@ class FLVDemuxer {
         let le = this._littleEndian;
         let v = new DataView(arrayBuffer, dataOffset, dataSize);
 
+        // readnote 4bits: sound format 2bits: 采样率 1bit:采样大小 1bit: 音频类型 mono stereo
         let soundSpec = v.getUint8(0);
 
         let soundFormat = soundSpec >>> 4;
+        // readnote flv.js只支持mp3和aac格式的音频
         if (soundFormat !== 2 && soundFormat !== 10) {  // MP3 or AAC
             this._onError(DemuxErrors.CODEC_UNSUPPORTED, 'Flv: Unsupported audio codec idx: ' + soundFormat);
             return;
         }
 
+        // readnote 采样率 单位 hz
         let soundRate = 0;
         let soundRateIndex = (soundSpec & 12) >>> 2;
         if (soundRateIndex >= 0 && soundRateIndex <= 4) {
@@ -498,8 +531,9 @@ class FLVDemuxer {
             this._onError(DemuxErrors.FORMAT_ERROR, 'Flv: Invalid audio sample rate idx: ' + soundRateIndex);
             return;
         }
-
+        // readnote 单个采样的大小, 因为mp3和aac都是压缩的格式, 对于压缩的格式, 采样大小总为16bits
         let soundSize = (soundSpec & 2) >>> 1;  // unused
+        // readnote 0:mono 1: stereo
         let soundType = (soundSpec & 1);
 
 
@@ -623,6 +657,7 @@ class FLVDemuxer {
         }
     }
 
+    // readnote 解析AACAUDIODATA 音频 只对AACAudioSpecificConfig做特别解析, 其他不做解析
     _parseAACAudioData(arrayBuffer, dataOffset, dataSize) {
         if (dataSize <= 1) {
             Log.w(this.TAG, 'Flv: Invalid AAC packet, missing AACPacketType or/and Data!');
@@ -643,6 +678,7 @@ class FLVDemuxer {
         return result;
     }
 
+    // readnote 解析AuidoSpecificConfig 音频配置包 还不太懂
     _parseAACAudioSpecificConfig(arrayBuffer, dataOffset, dataSize) {
         let array = new Uint8Array(arrayBuffer, dataOffset, dataSize);
         let config = null;
@@ -674,6 +710,17 @@ class FLVDemuxer {
 
         let samplingFrequence = this._mpegSamplingRates[samplingIndex];
 
+        /* readnote channel config
+         * 0: defined in AOT Specfic Config
+         * 1: 1 channel front-center
+         * 2: 2 chennels font-left front-right
+         * 3: 3 channels front-center front-left front-right
+         * 4: front-center front-right front-left back-center
+         * 5: front-center front-right front-left back-left back-right
+         * 6: front-center front-right front-left back-right back-left LFE-channel
+         * 7:  front-center front-right frot-left side-left side-right back-left back-right LFE-channel
+         * others : reserved
+        **/
         // 4 bits
         let channelConfig = (array[1] & 0x78) >>> 3;
         if (channelConfig < 0 || channelConfig >= 8) {
@@ -820,6 +867,7 @@ class FLVDemuxer {
         return result;
     }
 
+    // readnote 解析视频数据
     _parseVideoData(arrayBuffer, dataOffset, dataSize, tagTimestamp, tagPosition) {
         if (dataSize <= 1) {
             Log.w(this.TAG, 'Flv: Invalid video packet, missing VideoData payload!');
@@ -832,11 +880,14 @@ class FLVDemuxer {
             return;
         }
 
+        // readnote videodata 第一个字节是package 信息
         let spec = (new Uint8Array(arrayBuffer, dataOffset, dataSize))[0];
 
+        // readnote 240 = 0xF0 高四位掩码
         let frameType = (spec & 240) >>> 4;
         let codecId = spec & 15;
 
+        // readnote 如果不是AVCVIDEOPACKET不支持解析
         if (codecId !== 7) {
             this._onError(DemuxErrors.CODEC_UNSUPPORTED, `Flv: Unsupported codec in video frame: ${codecId}`);
             return;
@@ -845,6 +896,7 @@ class FLVDemuxer {
         this._parseAVCVideoPacket(arrayBuffer, dataOffset + 1, dataSize - 1, tagTimestamp, tagPosition, frameType);
     }
 
+    // readnote 解析AVCVIDEOPACKET
     _parseAVCVideoPacket(arrayBuffer, dataOffset, dataSize, tagTimestamp, tagPosition, frameType) {
         if (dataSize < 4) {
             Log.w(this.TAG, 'Flv: Invalid AVC packet, missing AVCPacketType or/and CompositionTime');
@@ -854,6 +906,11 @@ class FLVDemuxer {
         let le = this._littleEndian;
         let v = new DataView(arrayBuffer, dataOffset, dataSize);
 
+        /* readnote AVCVideoPacket
+         * packetType : 0: AVC sequence header ; 1: avc nalu 2: avc end of sequence
+         * componsition time : signed int 24 if packetType ==1 componsition time offset else 0
+         * data: if packettype==0 AVCDecoderConfigurationRecord else if  ==1 NALUs else empty
+        **/
         let packetType = v.getUint8(0);
         let cts_unsigned = v.getUint32(0, !le) & 0x00FFFFFF;
         let cts = (cts_unsigned << 8) >> 8;  // convert to 24-bit signed int
@@ -870,6 +927,7 @@ class FLVDemuxer {
         }
     }
 
+    // readnote avc 配置信息解析
     _parseAVCDecoderConfigurationRecord(arrayBuffer, dataOffset, dataSize) {
         if (dataSize < 7) {
             Log.w(this.TAG, 'Flv: Invalid AVCDecoderConfigurationRecord, lack of data!');
@@ -1038,6 +1096,14 @@ class FLVDemuxer {
         this._onTrackMetadata('video', meta);
     }
 
+    /* readnote nalu类型
+     * sps Sequence Parameter Set 序列参数集 作用于一系列连续的编码图像
+     * pps Picture Parameter Set 图像参数集, 作用于编码视频序列中一个或多个独立图像
+     * sei Supplemental Enhancement Information 附加增强信息, 包含了视频画面定时等信息, 一般放在主编码图像数据前, 可以被省略掉
+     * idr Instantaneous Decoding Refresh 即时解码刷新
+     * hrd Hypothetical Reference Decoder 假象码流调度器
+     */
+    // readnote avc 数据部分解析
     _parseAVCVideoData(arrayBuffer, dataOffset, dataSize, tagTimestamp, tagPosition, frameType, cts) {
         let le = this._littleEndian;
         let v = new DataView(arrayBuffer, dataOffset, dataSize);
@@ -1045,6 +1111,7 @@ class FLVDemuxer {
         let units = [], length = 0;
 
         let offset = 0;
+        // readnote 这个似乎是指示nalu中标明该nalu长度的字段的长度, 这里只考虑了该字段长度为3 和 4的情况
         const lengthSize = this._naluLengthSize;
         let dts = this._timestampBase + tagTimestamp;
         let keyframe = (frameType === 1);  // from FLV Frame Type constants
@@ -1054,6 +1121,8 @@ class FLVDemuxer {
                 Log.w(this.TAG, `Malformed Nalu near timestamp ${dts}, offset = ${offset}, dataSize = ${dataSize}`);
                 break;  // data not enough for next Nalu
             }
+
+            // readnote avc1 : h.264 without start codes
             // Nalu with length-header (AVC1)
             let naluSize = v.getUint32(offset, !le);  // Big-Endian read
             if (lengthSize === 3) {

@@ -129,6 +129,7 @@ class MP4Remuxer {
         this._audioSegmentInfoList.clear();
     }
 
+    // readnote demuxer onDataAvailable 调用
     remux(audioTrack, videoTrack) {
         if (!this._onMediaSegment) {
             throw new IllegalStateException('MP4Remuxer: onMediaSegment callback must be specificed!');
@@ -177,6 +178,7 @@ class MP4Remuxer {
         });
     }
 
+    // readnote 音视频共同的dts, 解码时间戳?
     _calculateDtsBase(audioTrack, videoTrack) {
         if (this._dtsBaseInited) {
             return;
@@ -230,6 +232,7 @@ class MP4Remuxer {
         this._remuxAudio(audioTrack, true);
     }
 
+    // readnote 编码收到的音频
     _remuxAudio(audioTrack, force) {
         if (this._audioMeta == null) {
             return;
@@ -532,9 +535,11 @@ class MP4Remuxer {
             segment.timestampOffset = firstDts;
         }
 
+        // readnote controller 中的onMediaSegment
         this._onMediaSegment('audio', segment);
     }
 
+    // readnote 编码收到的视频
     _remuxVideo(videoTrack, force) {
         if (this._videoMeta == null) {
             return;
@@ -722,7 +727,7 @@ class MP4Remuxer {
         let moofbox = MP4.moof(track, firstDts);
         track.samples = [];
         track.length = 0;
-
+        // readnote controller(可能在worker中) 中的onMediaSegment
         this._onMediaSegment('video', {
             type: 'video',
             data: this._mergeBoxes(moofbox, mdatbox).buffer,

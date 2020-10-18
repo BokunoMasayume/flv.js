@@ -16,7 +16,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+// readnote 音频 获取静音的啥? 好像是生成各种编码下的音频静音帧
 class AAC {
 
     static getSilentFrame(codec, channelCount) {

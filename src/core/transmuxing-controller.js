@@ -367,6 +367,7 @@ class TransmuxingController {
         this._emitter.emit(TransmuxingEvents.INIT_SEGMENT, type, initSegment);
     }
 
+    // readnote 触发 transmuxing-worker或transmuxer 中的onMediaSegment
     _onRemuxerMediaSegmentArrival(type, mediaSegment) {
         if (this._pendingSeekTime != null) {
             // Media segments after new-segment cross-seeking should be dropped.

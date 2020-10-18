@@ -33,6 +33,7 @@ Polyfill.install();
 
 
 // factory method
+// readnote FlvPlayer 工厂方法, FlvPlayer 或 NativePlayer
 function createPlayer(mediaDataSource, optionalConfig) {
     let mds = mediaDataSource;
     if (mds == null || typeof mds !== 'object') {

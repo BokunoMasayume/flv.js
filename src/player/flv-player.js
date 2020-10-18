@@ -30,6 +30,11 @@ import {InvalidArgumentException, IllegalStateException} from '../utils/exceptio
 
 class FlvPlayer {
 
+    /* readnote mediaDataSource 
+     * type 字段, 必须为flv
+     * url 字段, 视频源
+     * isLive 字段, 是否为直播
+     */
     constructor(mediaDataSource, config) {
         this.TAG = 'FlvPlayer';
         this._type = 'FlvPlayer';
@@ -48,6 +53,7 @@ class FlvPlayer {
             this._config.isLive = true;
         }
 
+        // readnote e 播放器监听事件句柄
         this.e = {
             onvLoadedMetadata: this._onvLoadedMetadata.bind(this),
             onvSeeking: this._onvSeeking.bind(this),
@@ -56,6 +62,7 @@ class FlvPlayer {
             onvProgress: this._onvProgress.bind(this)
         };
 
+        // readnote self 大概可以认为就是window
         if (self.performance && self.performance.now) {
             this._now = self.performance.now.bind(self.performance);
         } else {
@@ -108,6 +115,7 @@ class FlvPlayer {
     }
 
     on(event, listener) {
+        // readnote 如果有人监听meida_info statistics_info 事件, 本次事件循环之后就告诉它
         if (event === PlayerEvents.MEDIA_INFO) {
             if (this._mediaInfo != null) {
                 Promise.resolve().then(() => {
@@ -211,6 +219,7 @@ class FlvPlayer {
         this._transmuxer.on(TransmuxingEvents.INIT_SEGMENT, (type, is) => {
             this._msectl.appendInitSegment(is);
         });
+        // readnote 接收到编码好的数据
         this._transmuxer.on(TransmuxingEvents.MEDIA_SEGMENT, (type, ms) => {
             this._msectl.appendMediaSegment(ms);
 

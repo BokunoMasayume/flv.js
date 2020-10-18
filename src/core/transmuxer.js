@@ -208,6 +208,7 @@ class Transmuxer {
         }
     }
 
+    // readnote worker 模式时
     _onWorkerMessage(e) {
         let message = e.data;
         let data = message.data;

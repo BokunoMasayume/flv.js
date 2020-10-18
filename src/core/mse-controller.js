@@ -37,6 +37,7 @@ class MSEController {
             this._config.autoCleanupSourceBuffer = true;
         }
 
+        // readnote e 存放事件句柄的对象
         this.e = {
             onSourceOpen: this._onSourceOpen.bind(this),
             onSourceEnded: this._onSourceEnded.bind(this),
@@ -222,6 +223,7 @@ class MSEController {
         }
     }
 
+    // readnote 处理接收的编码好的数据
     appendMediaSegment(mediaSegment) {
         let ms = mediaSegment;
         this._pendingSegments[ms.type].push(ms);

@@ -32,7 +32,9 @@ class AMF {
         let data = {};
 
         try {
+            // readnote 第一额是字符串 onMetaData
             let name = AMF.parseValue(arrayBuffer, dataOffset, dataSize);
+            // readnote 第二个是对象 包含了flv中音视频的元信息
             let value = AMF.parseValue(arrayBuffer, dataOffset + name.size, dataSize - name.size);
 
             data[name.data] = value.data;
@@ -65,6 +67,7 @@ class AMF {
         return AMF.parseObject(arrayBuffer, dataOffset, dataSize);
     }
 
+    //readnote dataOffset: 刨掉前面的type了
     static parseString(arrayBuffer, dataOffset, dataSize) {
         if (dataSize < 2) {
             throw new IllegalStateException('Data not enough when parse String');
@@ -120,6 +123,7 @@ class AMF {
         };
     }
 
+    // readnote  返回值: {data: 数据, size: 数据尺寸, objectEnd: 是否是objectEnd}
     static parseValue(arrayBuffer, dataOffset, dataSize) {
         if (dataSize < 1) {
             throw new IllegalStateException('Data not enough when parse Value');

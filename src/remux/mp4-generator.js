@@ -17,6 +17,7 @@
  * limitations under the License.
  */
 
+// readnote 额 , 算单例?
 //  MP4 boxes generator for ISO BMFF (ISO Base Media File Format, defined in ISO/IEC 14496-12)
 class MP4 {
 
@@ -32,7 +33,7 @@ class MP4 {
             trak: [], trun: [], trex: [], tkhd: [],
             vmhd: [], smhd: [], '.mp3': []
         };
-
+        // readnote 字符串转换为ascii编码
         for (let name in MP4.types) {
             if (MP4.types.hasOwnProperty(name)) {
                 MP4.types[name] = [
@@ -44,6 +45,7 @@ class MP4 {
             }
         }
 
+        // readnote constants mp4固定值
         let constants = MP4.constants = {};
 
         constants.FTYP = new Uint8Array([

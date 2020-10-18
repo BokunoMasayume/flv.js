@@ -18,14 +18,14 @@
 
 import IOController from '../io/io-controller.js';
 import {createDefaultConfig} from '../config.js';
-
+// readnote Features 类 获取视频支持性相关的信息
 class Features {
-
+    // readnote mre是否支持h264
     static supportMSEH264Playback() {
         return window.MediaSource &&
                window.MediaSource.isTypeSupported('video/mp4; codecs="avc1.42E01E,mp4a.40.2"');
     }
-
+    // readnote io能不能用
     static supportNetworkStreamIO() {
         let ioctl = new IOController({}, createDefaultConfig());
         let loaderType = ioctl.loaderType;
@@ -33,6 +33,7 @@ class Features {
         return loaderType == 'fetch-stream-loader' || loaderType == 'xhr-moz-chunked-loader';
     }
 
+    // readnote io type namez
     static getNetworkLoaderTypeName() {
         let ioctl = new IOController({}, createDefaultConfig());
         let loaderType = ioctl.loaderType;
@@ -40,6 +41,7 @@ class Features {
         return loaderType;
     }
 
+    // readnote 视频能不能被video原生播放
     static supportNativeMediaPlayback(mimeType) {
         if (Features.videoElement == undefined) {
             Features.videoElement = window.document.createElement('video');
@@ -48,6 +50,7 @@ class Features {
         return canPlay === 'probably' || canPlay == 'maybe';
     }
 
+    // readnote 拿到一堆支持性的字段
     static getFeatureList() {
         let features = {
             mseFlvPlayback: false,

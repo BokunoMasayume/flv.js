@@ -17,7 +17,9 @@
  */
 
 import {IllegalStateException, InvalidArgumentException} from '../utils/exception.js';
-
+// readnote 指数哥不伦编码解码 该类中将数字解码为一个字的大小
+// readnote num = 2^m + offset - 1 e.g. 00101: 2^2 + 0x01 -1 = 4
+// https://www.cnblogs.com/wangguchangqing/p/6297792.html#autoid-2-0-0
 // Exponential-Golomb buffer decoder
 class ExpGolomb {
 
