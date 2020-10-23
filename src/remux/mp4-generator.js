@@ -23,6 +23,7 @@ class MP4 {
 
     static init() {
         MP4.types = {
+            // readnote 爷爷啊, 35种boxes???
             avc1: [], avcC: [], btrt: [], dinf: [],
             dref: [], esds: [], ftyp: [], hdlr: [],
             mdat: [], mdhd: [], mdia: [], mfhd: [],
@@ -51,8 +52,8 @@ class MP4 {
         constants.FTYP = new Uint8Array([
             0x69, 0x73, 0x6F, 0x6D,  // major_brand: isom
             0x0,  0x0,  0x0,  0x1,   // minor_version: 0x01
-            0x69, 0x73, 0x6F, 0x6D,  // isom
-            0x61, 0x76, 0x63, 0x31   // avc1
+            0x69, 0x73, 0x6F, 0x6D,  // isom mp4 base meida v1 iso 14496-12 2003
+            0x61, 0x76, 0x63, 0x31   // avc1 mp4 base avc ext iso 14496-12 2005
         ]);
 
         constants.STSD_PREFIX = new Uint8Array([
@@ -120,23 +121,29 @@ class MP4 {
         ]);
     }
 
+    // readnote 实际生成box的函数
     // Generate a box
     static box(type) {
         let size = 8;
         let result = null;
+        // readnote 从第二个参数开始的参数数组
         let datas = Array.prototype.slice.call(arguments, 1);
         let arrayCount = datas.length;
 
+        // readnote size是box总长度
         for (let i = 0; i < arrayCount; i++) {
             size += datas[i].byteLength;
         }
 
         result = new Uint8Array(size);
+
+        // readnote box头部先是4字节box长度
         result[0] = (size >>> 24) & 0xFF;  // size
         result[1] = (size >>> 16) & 0xFF;
         result[2] = (size >>>  8) & 0xFF;
         result[3] = (size) & 0xFF;
 
+        // readnote box头部4字节box类型
         result.set(type, 4);  // type
 
         let offset = 8;
@@ -148,6 +155,7 @@ class MP4 {
         return result;
     }
 
+    // readnote mp4 头部盒子
     // emit ftyp & moov
     static generateInitSegment(meta) {
         let ftyp = MP4.box(MP4.types.ftyp, MP4.constants.FTYP);
@@ -165,7 +173,7 @@ class MP4 {
         let trak = MP4.trak(meta);
         let mvex = MP4.mvex(meta);
         return MP4.box(MP4.types.moov, mvhd, trak, mvex);
-    }
+    } 
 
     // Movie header box
     static mvhd(timescale, duration) {
@@ -185,7 +193,7 @@ class MP4 {
             0x01, 0x00, 0x00, 0x00,  // PreferredVolume(1.0, 2bytes) + reserved(2bytes)
             0x00, 0x00, 0x00, 0x00,  // reserved: 4 + 4 bytes
             0x00, 0x00, 0x00, 0x00,
-            0x00, 0x01, 0x00, 0x00,  // ----begin composition matrix----
+            0x00, 0x01, 0x00, 0x00,  // ----begin composition matrix---- //readnote 此处是单位矩阵, 不做变化
             0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00,
@@ -456,6 +464,7 @@ class MP4 {
         return MP4.box(MP4.types.trex, data);
     }
 
+    // readnote moof
     // Movie fragment box
     static moof(track, baseMediaDecodeTime) {
         return MP4.box(MP4.types.moof, MP4.mfhd(track.sequenceNumber), MP4.traf(track, baseMediaDecodeTime));
@@ -560,6 +569,7 @@ class MP4 {
         return MP4.box(MP4.types.trun, data);
     }
 
+    // readnote mdat
     static mdat(data) {
         return MP4.box(MP4.types.mdat, data);
     }

@@ -80,6 +80,7 @@ class MP4Remuxer {
         this._onMediaSegment = null;
     }
 
+    // readnote 方法注入
     bindDataSource(producer) {
         producer.onDataAvailable = this.remux.bind(this);
         producer.onTrackMetadata = this._onTrackMetadataReceived.bind(this);
@@ -141,6 +142,44 @@ class MP4Remuxer {
         this._remuxAudio(audioTrack);
     }
 
+    // readnote 初始化信息解析 demuxer onTrackMetadata
+    /*
+     * metadata {
+     *  type: 'audio'
+     *  id: track.id
+     *  timescale: demuxer._timescale
+     *  duration: demuxer._duration
+     *  audioSampleRate: 
+     *  channelCount: 
+     * // 来自 _parseAACAudioDAta
+     *  audioSampleRate
+     *  channelCount
+     *  codec
+     *  originalCodec   
+     *  config only AAC
+     *  refSampleDuration
+     * }
+     * 
+     * metadata {
+     *  type: 'video'
+     *  id: track.id
+     *  timescale: demuxer._timescale
+     *  duration: demuxer._duration
+     *  codecWidth
+     *  codecHeight
+     *  presentWidth
+     *  presentHeigh
+     *  profile
+     *  level
+     *  bitDepth
+     *  chromaFormat
+     *  sarRatio
+     *  frameRate
+     *  codec
+     *  refSampleDuration
+     *  avcc
+     * }
+     **/
     _onTrackMetadataReceived(type, metadata) {
         let metabox = null;
 
@@ -457,6 +496,7 @@ class MP4Remuxer {
             }
         }
 
+        // readnote audio mdatbox 
         // allocate mdatbox
         if (mpegRawTrack) {
             // allocate for raw mpeg buffer
@@ -515,6 +555,7 @@ class MP4Remuxer {
             // Generate empty buffer, because useless for raw mpeg
             moofbox = new Uint8Array();
         } else {
+            // readnote audio moof
             // Generate moof for fmp4 segment
             moofbox = MP4.moof(track, firstDts);
         }
@@ -736,6 +777,7 @@ class MP4Remuxer {
         });
     }
 
+    // readnote 就是先一个moof, 再一个mdat
     _mergeBoxes(moof, mdat) {
         let result = new Uint8Array(moof.byteLength + mdat.byteLength);
         result.set(moof, 0);

@@ -57,18 +57,23 @@ class MSEController {
         this._pendingMediaDuration = 0;
 
         this._pendingSourceBufferInit = [];
+        // readnote 一直以来使用的媒体类型
         this._mimeTypes = {
             video: null,
             audio: null
         };
+
+        // readnote 连接ms的buffers
         this._sourceBuffers = {
             video: null,
             audio: null
         };
+        // readnote 最近收到的初始化段
         this._lastInitSegments = {
             video: null,
             audio: null
         };
+        // readnote 待处理的媒体(或初始化)段 , 等待被加入this._sourceBuffers
         this._pendingSegments = {
             video: [],
             audio: []
@@ -77,6 +82,7 @@ class MSEController {
             video: [],
             audio: []
         };
+        // readnote 关键帧列表
         this._idrList = new IDRSampleList();
     }
 
@@ -166,6 +172,15 @@ class MSEController {
         }
     }
 
+    // readnote 处理接收的编码好的初始化数据, 核心就是一行addSourceBuffer
+    /*  initSegment {
+     *      type:video audio
+     *      data: buffer
+     *      codec
+     *      container: video/mp4 audio/mp4 audio/mp3
+     *      mediaDuration:
+     * }
+     * */
     appendInitSegment(initSegment, deferred) {
         if (!this._mediaSource || this._mediaSource.readyState !== 'open') {
             // sourcebuffer creation requires mediaSource.readyState === 'open'
@@ -223,9 +238,18 @@ class MSEController {
         }
     }
 
-    // readnote 处理接收的编码好的数据
+    // readnote 处理接收的编码好的媒体数据, 核心就是一行sourcebuffer的appendBuffer(moof+mdat)
+    /* MediaSegment {
+    *   type: 'audio' | 'video',
+    *   data: buffer: moof + mdat
+    *   sampleCount: sample个数
+    *   info:MediaSegmentInfo
+    *   timestampOffset: firstDts
+    * }
+    **/
     appendMediaSegment(mediaSegment) {
         let ms = mediaSegment;
+        // readnote _pendingSegments 待处理的段
         this._pendingSegments[ms.type].push(ms);
 
         if (this._config.autoCleanupSourceBuffer && this._needCleanupSourceBuffer()) {
@@ -413,15 +437,19 @@ class MSEController {
         }
     }
 
+    // readnote 处理接收到的段
     _doAppendSegments() {
         let pendingSegments = this._pendingSegments;
 
         for (let type in pendingSegments) {
+
+            // readnote 如果相应sourceBuffer还在忙, 就先不处理
             if (!this._sourceBuffers[type] || this._sourceBuffers[type].updating) {
                 continue;
             }
 
             if (pendingSegments[type].length > 0) {
+                // readnote 一个个段的处理哦
                 let segment = pendingSegments[type].shift();
 
                 if (segment.timestampOffset) {
@@ -447,10 +475,13 @@ class MSEController {
                     this._sourceBuffers[type].appendBuffer(segment.data);
                     this._isBufferFull = false;
                     if (type === 'video' && segment.hasOwnProperty('info')) {
+                        // readnote _idrList 关键帧信息列表
                         this._idrList.appendArray(segment.info.syncPoints);
                     }
                 } catch (error) {
                     this._pendingSegments[type].unshift(segment);
+
+                    // readnote buffer装满了
                     if (error.code === 22) {  // QuotaExceededError
                         /* Notice that FireFox may not throw QuotaExceededError if SourceBuffer is full
                          * Currently we can only do lazy-load to avoid SourceBuffer become scattered.
@@ -467,6 +498,7 @@ class MSEController {
                         }
                         this._isBufferFull = true;
                     } else {
+                        // readnote 其他无法简单解决的错误
                         Log.e(this.TAG, error.message);
                         this._emitter.emit(MSEEvents.ERROR, {code: error.code, msg: error.message});
                     }

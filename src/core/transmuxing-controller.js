@@ -272,6 +272,7 @@ class TransmuxingController {
                          .bindDataSource(this._ioctl
             ));
 
+            // readnote 方法注入
             this._remuxer.onInitSegment = this._onRemuxerInitSegmentArrival.bind(this);
             this._remuxer.onMediaSegment = this._onRemuxerMediaSegmentArrival.bind(this);
 
@@ -363,6 +364,7 @@ class TransmuxingController {
         this._emitter.emit(TransmuxingEvents.DEMUX_ERROR, type, info);
     }
 
+    // readnote 触发transmuxer 中的onInitSegment
     _onRemuxerInitSegmentArrival(type, initSegment) {
         this._emitter.emit(TransmuxingEvents.INIT_SEGMENT, type, initSegment);
     }

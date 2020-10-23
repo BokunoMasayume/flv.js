@@ -216,6 +216,7 @@ class FlvPlayer {
 
         this._transmuxer = new Transmuxer(this._mediaDataSource, this._config);
 
+        // readnote  接收初始化数据, 来自 transmuxer onInitSegment
         this._transmuxer.on(TransmuxingEvents.INIT_SEGMENT, (type, is) => {
             this._msectl.appendInitSegment(is);
         });
